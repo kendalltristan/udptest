@@ -77,7 +77,7 @@ func receiver(ctx context.Context, conn io.Reader) {
 }
 
 
-//
+// And here we go...
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -109,23 +109,27 @@ func main() {
 	Info.Printf("Local address: %v\n", conn.LocalAddr())
 	Info.Printf("Remote address: %v\n", conn.RemoteAddr())
 
+	// Create a byte, launch the receiver, and sleep for a second.
 	b := []byte("abcdefghijklmnopqrstuvwxyz0123456789\n")
-
 	go receiver(ctx, conn)
-
 	time.Sleep(time.Second)
 
+	// TODO: Eliminate messageCount and use an infinite loop with more sleep.
 	for i := 0; i < messageCount; i++ {
 		_, err = conn.Write(b)
 		if err != nil {
 			Error.Printf("conn.Write() error: %s\n", err)
 		}
 		time.Sleep(1 * time.Millisecond)
+
+		// TODO: Call cancel() on keyboard interrupt.
 	}
 
+	// TODO: Similarly we can axe this.
 	time.Sleep(time.Second)
 	cancel()
 
+	// Output the total number of messages sent.
 	Info.Println("total sent messages:", messageCount)
 	if err = conn.Close(); err != nil {
 		time.Sleep(time.Second)
