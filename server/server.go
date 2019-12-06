@@ -24,6 +24,10 @@ var (
 )
 
 
+/**
+ * Log related functions.
+ */
+
 // Redirect Stderr to a file.
 func redirectStderr(f *os.File) {
     err := syscall.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
@@ -41,6 +45,10 @@ func logInit(handle io.Writer) {
 }
 
 
+/**
+ * SourceCounter
+ */
+
 // SourceCounter keeps track of the number of received messages from each
 // source until the next Report (at which point, the counters are cleared)
 type SourceCounter struct {
@@ -48,12 +56,14 @@ type SourceCounter struct {
 	mu   sync.Mutex
 }
 
+
 // NewSourceCounter returns a new instantiated SourceCounter
 func NewSourceCounter() *SourceCounter {
 	return &SourceCounter{
 		list: make(map[string]*int64),
 	}
 }
+
 
 func (s *SourceCounter) Add(src string) {
 	cnt, ok := s.list[src]
@@ -66,6 +76,7 @@ func (s *SourceCounter) Add(src string) {
 	*cnt = *cnt + 1
 }
 
+
 func (s *SourceCounter) Report() {
 	s.mu.Lock()
 
@@ -77,12 +88,20 @@ func (s *SourceCounter) Report() {
 	s.mu.Unlock()
 }
 
+
+/**
+ * Main/init functions.
+ */
+
+//
 func init() {
 	flag.StringVar(&bindInterface, "i", "::", "i is the interface IP to which to bind")
 	flag.IntVar(&bindPort, "p", 10100, "p is the UDP port to which to bind")
 	flag.StringVar(&logPath, "log", "/var/log/udptest.log", "The file where output/errors will be logged.")
 }
 
+
+//
 func main() {
 	var err error
 
@@ -126,6 +145,11 @@ func main() {
 	}
 }
 
+
+/**
+ * Utilities
+ */
+
 func reporter(sc *SourceCounter) {
 	t := time.NewTicker(5 * time.Minute)
 
@@ -134,6 +158,7 @@ func reporter(sc *SourceCounter) {
 		sc.Report()
 	}
 }
+
 
 func inputReporter(sc *SourceCounter) {
 	r := bufio.NewReader(os.Stdin)
