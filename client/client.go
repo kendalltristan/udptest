@@ -5,11 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"os"
 	"strconv"
+	"syscall"
 	"time"
 )
 
