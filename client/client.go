@@ -8,6 +8,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"os/signal"
 	"strconv"
 	"syscall"
 	"time"
@@ -16,7 +17,8 @@ import (
 var (
 	name string
 	port int
-	messageCount int
+	sentCount int = 0;
+	receivedCount int = 0;
 	logPath string
 
     Info *log.Logger
@@ -46,7 +48,6 @@ func logInit(handle io.Writer) {
 func init() {
 	flag.StringVar(&name, "host", "", "Host is the echo server to which we should connect.")
 	flag.IntVar(&port, "port", 10100, "Port defines the UDP port to which we should connect.")
-	flag.IntVar(&messageCount, "count", 100, "Count is the number of datagrams to send.")
 	flag.StringVar(&logPath, "log", "/var/log/udptest.log", "The file where output/errors will be logged.")
 }
 
@@ -54,26 +55,27 @@ func init() {
 //
 func receiver(ctx context.Context, conn io.Reader) {
 	var cc int
-	var count int
 	var err error
 	c := make([]byte, 40)
 
 	for ctx.Err() == nil {
-		if count == messageCount {
-			break
-		}
 		cc, err = conn.Read(c)
 		if err != nil {
 			Error.Printf("conn.Read() error: %s\n", err)
-			break
+			continue
 		}
 		if cc != 37 {
 			Error.Printf("ERROR: wrong bytes read: %d != %d", cc, 37)
 		} else {
-			count++
+			receivedCount++
 		}
 	}
-	Info.Println("total read messages:", count)
+}
+
+
+//
+func cleanup(conn io.Reader) {
+
 }
 
 
@@ -98,6 +100,17 @@ func main() {
 		Critical.Fatalln("host is a required parameter")
 	}
 
+	// Catch keyboard interrupts.
+	c := make(chan os.Signal)
+    signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+    go func() {
+        <-c
+		cancel()
+        Info.Println("Total sent messages:", sentCount)
+		Info.Println("Total received messages:", receivedCount)
+        os.Exit(1)
+    }()
+
 	// Assemble the name and port, then open a UDP connection.
 	nameport := name + ":" + strconv.Itoa(port)
 	conn, err := net.Dial("udp", nameport)
@@ -114,26 +127,24 @@ func main() {
 	go receiver(ctx, conn)
 	time.Sleep(time.Second)
 
-	// TODO: Eliminate messageCount and use an infinite loop with more sleep.
-	for i := 0; i < messageCount; i++ {
+	//
+	for {
+		sentCount++
 		_, err = conn.Write(b)
 		if err != nil {
 			Error.Printf("conn.Write() error: %s\n", err)
 		}
-		time.Sleep(1 * time.Millisecond)
-
-		// TODO: Call cancel() on keyboard interrupt.
+		time.Sleep(6 * time.Second)
 	}
 
-	// TODO: Similarly we can axe this.
-	time.Sleep(time.Second)
+	// In case we somehow get broken out of the loop.
 	cancel()
-
-	// Output the total number of messages sent.
-	Info.Println("total sent messages:", messageCount)
-	if err = conn.Close(); err != nil {
+	Info.Println("Total sent messages:", sentCount)
+	Info.Println("Total received messages:", receivedCount)
+	if err := conn.Close(); err != nil {
 		time.Sleep(time.Second)
 		log.Fatal(err)
 	}
 	time.Sleep(time.Second)
+	os.Exit(0)
 }
