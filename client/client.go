@@ -17,8 +17,7 @@ var (
 	name string
 	port int
 	messageCount int
-
-	logPath string = "/var/log/udptest.log"
+	logPath string
 
     Info *log.Logger
     Error *log.Logger
@@ -45,9 +44,10 @@ func logInit(handle io.Writer) {
 
 // Assign name, port, and message count variables.
 func init() {
-	flag.StringVar(&name, "host", "", "host is the echo server to which we should connect")
-	flag.IntVar(&port, "port", 10100, "port defines the UDP port to which we should connect")
-	flag.IntVar(&messageCount, "count", 100, "count is the number of datagrams to send")
+	flag.StringVar(&name, "host", "", "Host is the echo server to which we should connect.")
+	flag.IntVar(&port, "port", 10100, "Port defines the UDP port to which we should connect.")
+	flag.IntVar(&messageCount, "count", 100, "Count is the number of datagrams to send.")
+	flag.StringVar(&logPath, "log", "/var/log/udptest.log", "The file where output/errors will be logged.")
 }
 
 
@@ -81,6 +81,7 @@ func receiver(ctx context.Context, conn io.Reader) {
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	flag.Parse()
 
 	// Open the log file, redirect Stderr to it, and initialize our loggers.
     logFile, err := os.OpenFile(logPath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
@@ -92,8 +93,7 @@ func main() {
     redirectStderr(logFile)
     logInit(logFile)
 
-	// Parse the flags and die if the host is not specified.
-	flag.Parse()
+	// Die if the host is not specified.
 	if name == "" {
 		Critical.Fatalln("host is a required parameter")
 	}
