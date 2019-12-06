@@ -52,7 +52,7 @@ func init() {
 }
 
 
-//
+// Receives responses from the server.
 func receiver(ctx context.Context, conn io.Reader) {
 	var cc int
 	var err error
@@ -60,22 +60,20 @@ func receiver(ctx context.Context, conn io.Reader) {
 
 	for ctx.Err() == nil {
 		cc, err = conn.Read(c)
+
+		// If there's an explicit error, log it and continue.
 		if err != nil {
 			Error.Printf("conn.Read() error: %s\n", err)
 			continue
 		}
+
+		// Log packets of incorrect length as well.
 		if cc != 37 {
 			Error.Printf("ERROR: wrong bytes read: %d != %d", cc, 37)
-		} else {
-			receivedCount++
+			continue
 		}
+		receivedCount++
 	}
-}
-
-
-//
-func cleanup(conn io.Reader) {
-
 }
 
 
@@ -127,14 +125,14 @@ func main() {
 	go receiver(ctx, conn)
 	time.Sleep(time.Second)
 
-	//
+	// Infinite loop to send packets in 1 second intervals.
 	for {
 		sentCount++
 		_, err = conn.Write(b)
 		if err != nil {
 			Error.Printf("conn.Write() error: %s\n", err)
 		}
-		time.Sleep(6 * time.Second)
+		time.Sleep(time.Second)
 	}
 
 	// In case we somehow get broken out of the loop.
@@ -145,6 +143,5 @@ func main() {
 		time.Sleep(time.Second)
 		log.Fatal(err)
 	}
-	time.Sleep(time.Second)
 	os.Exit(0)
 }
