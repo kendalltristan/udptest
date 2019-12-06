@@ -93,7 +93,6 @@ func (s *SourceCounter) Report() {
  * Main/init functions.
  */
 
-//
 func init() {
 	flag.StringVar(&bindInterface, "i", "::", "i is the interface IP to which to bind")
 	flag.IntVar(&bindPort, "p", 10100, "p is the UDP port to which to bind")
@@ -101,7 +100,6 @@ func init() {
 }
 
 
-//
 func main() {
 	var err error
 
