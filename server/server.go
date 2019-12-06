@@ -4,12 +4,42 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"sync"
+	"syscall"
 	"time"
 )
+
+var (
+	bindInterface string
+	bindPort int
+	logPath string
+
+    Info *log.Logger
+    Error *log.Logger
+    Critical *log.Logger
+)
+
+
+// Redirect Stderr to a file.
+func redirectStderr(f *os.File) {
+    err := syscall.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
+    if err != nil {
+        Critical.Fatalln("Failed to redirect stderr to file:", err)
+    }
+}
+
+
+// Initializes our loggers.
+func logInit(handle io.Writer) {
+    Info = log.New(handle, "INFO: ", log.Ldate|log.Ltime|log.Lshortfile)
+    Error = log.New(handle, "ERROR: ", log.Ldate|log.Ltime|log.Lshortfile)
+    Critical = log.New(handle, "CRITICAL: ", log.Ldate|log.Ltime|log.Lshortfile)
+}
+
 
 // SourceCounter keeps track of the number of received messages from each
 // source until the next Report (at which point, the counters are cleared)
@@ -40,19 +70,17 @@ func (s *SourceCounter) Report() {
 	s.mu.Lock()
 
 	for ip, count := range s.list {
-		log.Printf("%s: %d", ip, *count)
+		Info.Printf("%s: %d", ip, *count)
 	}
 
 	s.list = make(map[string]*int64)
 	s.mu.Unlock()
 }
 
-var bindInterface string
-var bindPort int
-
 func init() {
 	flag.StringVar(&bindInterface, "i", "::", "i is the interface IP to which to bind")
 	flag.IntVar(&bindPort, "p", 10100, "p is the UDP port to which to bind")
+	flag.StringVar(&logPath, "log", "/var/log/udptest.log", "The file where output/errors will be logged.")
 }
 
 func main() {
@@ -60,11 +88,21 @@ func main() {
 
 	flag.Parse()
 
+	// Open the log file, redirect Stderr to it, and initialize our loggers.
+    logFile, err := os.OpenFile(logPath, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666)
+    if err != nil {
+        fmt.Println("ERROR: Unable to open log file. Exiting.")
+        os.Exit(1)
+    }
+    defer logFile.Close()
+    redirectStderr(logFile)
+    logInit(logFile)
+
 	addr := net.UDPAddr{Port: bindPort, IP: net.ParseIP(bindInterface)}
 
 	conn, err := net.ListenUDP("udp", &addr)
 	if err != nil {
-		log.Fatal(err)
+		Critical.Fatal(err)
 	}
 
 	b := make([]byte, 2048)
@@ -76,14 +114,14 @@ func main() {
 	for {
 		cc, remote, err := conn.ReadFromUDP(b)
 		if err != nil {
-			fmt.Printf("net.ReadFromUDP() error: %s\n", err)
+			Error.Printf("net.ReadFromUDP() error: %s\n", err)
 		}
 
 		sc.Add(remote.String())
 
 		_, err = conn.WriteTo(b[0:cc], remote)
 		if err != nil {
-			fmt.Printf("net.WriteTo() error: %s\n", err)
+			Error.Printf("net.WriteTo() error: %s\n", err)
 		}
 	}
 }
