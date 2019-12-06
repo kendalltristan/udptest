@@ -1,2 +1,4 @@
 /client/client
+/client/nohup.out
 /server/server
+/server/nohup.out
